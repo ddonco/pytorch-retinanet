@@ -48,7 +48,7 @@ def main(model, csv_val, csv_classes):
 			st = time.time()
 			scores, classification, transformed_anchors = retinanet(data['img'].float())
 			print('Elapsed time: {}'.format(time.time()-st))
-			idxs = np.where(scores>0.7)
+			idxs = np.where(scores>0.5)
 			img = np.array(255 * unnormalize(data['img'][0, :, :, :])).copy()
 
 			img[img<0] = 0
@@ -78,7 +78,7 @@ if __name__ == '__main__':
     model_path = Path('models')
     label_path = Path('labels')
 
-    model = model_path/'csv_retinanet_35.pt'
-    csv_val = label_path/'retinanet_defect_labels_colab-200px-valid-short.csv'
+    model = model_path/'csv_retinanet_29-120px.pt'
+    csv_val = label_path/'retinanet_defect_test-120px.csv'
     csv_classes = label_path/'retinanet_defect_classes.csv'
     main(model, csv_val, csv_classes)

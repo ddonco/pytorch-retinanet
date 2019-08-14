@@ -275,7 +275,7 @@ class ResNet(nn.Module):
             # print(f"scores: {scores.size()}")
             # print(f"classification: {classification.size()}")
             
-            anchors_nms_idx = nms.nms(transformed_anchors, scores, overlap=0.3)
+            anchors_nms_idx = nms.nms(transformed_anchors, scores, overlap=0.5)
             
             anchors_nms_idx = anchors_nms_idx[0]
             nms_scores, nms_class = classification[0, anchors_nms_idx, :].max(dim=1)
