@@ -5,7 +5,7 @@ import os
 import copy
 import pdb
 import time
-import argparse
+from pathlib import Path
 
 import sys
 import cv2
@@ -17,36 +17,16 @@ from torchvision import datasets, models, transforms
 from dataloader import CocoDataset, CSVDataset, collater, Resizer, AspectRatioBasedSampler, Augmenter, UnNormalizer, Normalizer
 
 
-# assert torch.__version__.split('.')[1] == '4'
+def main(model, csv_val, csv_classes):
 
-print('CUDA available: {}'.format(torch.cuda.is_available()))
-
-
-def main(args=None):
-	parser = argparse.ArgumentParser(description='Simple training script for training a RetinaNet network.')
-
-	parser.add_argument('--dataset', help='Dataset type, must be one of csv or coco.')
-	parser.add_argument('--coco_path', help='Path to COCO directory')
-	parser.add_argument('--csv_classes', help='Path to file containing class list (see readme)')
-	parser.add_argument('--csv_val', help='Path to file containing validation annotations (optional, see readme)')
-
-	parser.add_argument('--model', help='Path to model (.pt) file.')
-
-	parser = parser.parse_args(args)
-
-	if parser.dataset == 'coco':
-		dataset_val = CocoDataset(parser.coco_path, set_name='val2017', transform=transforms.Compose([Normalizer(), Resizer()]))
-	elif parser.dataset == 'csv':
-		dataset_val = CSVDataset(train_file=parser.csv_val, class_list=parser.csv_classes, transform=transforms.Compose([Normalizer(), Resizer()]))
-	else:
-		raise ValueError('Dataset type not understood (must be csv or coco), exiting.')
+	dataset_val = CSVDataset(train_file=csv_val, class_list=csv_classes, transform=transforms.Compose([Normalizer(), Resizer()]))
 
 	sampler_val = AspectRatioBasedSampler(dataset_val, batch_size=1, drop_last=False)
 	dataloader_val = DataLoader(dataset_val, num_workers=1, collate_fn=collater, batch_sampler=sampler_val)
 
-	retinanet = torch.load(parser.model)
+	retinanet = torch.load(model, map_location=torch.device('cpu'))
 
-	use_gpu = True
+	use_gpu = False
 
 	if use_gpu:
 		retinanet = retinanet.cuda()
@@ -57,7 +37,7 @@ def main(args=None):
 
 	def draw_caption(image, box, label_name, label_score):
 
-		caption = f"{label_name}: {label_score}"
+		caption = f"{label_name}: {label_score:.2f}"
 		b = np.array(box).astype(int)
 		cv2.putText(image, caption, (b[0], b[1] - 10), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0), 2)
 		cv2.putText(image, caption, (b[0], b[1] - 10), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 255), 1)
@@ -66,9 +46,9 @@ def main(args=None):
 
 		with torch.no_grad():
 			st = time.time()
-			scores, classification, transformed_anchors = retinanet(data['img'].cuda().float())
+			scores, classification, transformed_anchors = retinanet(data['img'].float())
 			print('Elapsed time: {}'.format(time.time()-st))
-			idxs = np.where(scores>0.5)
+			idxs = np.where(scores>0.7)
 			img = np.array(255 * unnormalize(data['img'][0, :, :, :])).copy()
 
 			img[img<0] = 0
@@ -89,12 +69,16 @@ def main(args=None):
 				draw_caption(img, (x1, y1, x2, y2), label_name, label_score)
 
 				cv2.rectangle(img, (x1, y1), (x2, y2), color=(0, 0, 255), thickness=2)
-				print(f"{label_name}: {label_score}")
+				print(f"{label_name}: {label_score:.2f}")
 
 			cv2.imshow('img', img)
 			cv2.waitKey(0)
 
-
-
 if __name__ == '__main__':
- main()
+    model_path = Path('models')
+    label_path = Path('labels')
+
+    model = model_path/'csv_retinanet_35.pt'
+    csv_val = label_path/'retinanet_defect_labels_colab-200px-valid-short.csv'
+    csv_classes = label_path/'retinanet_defect_classes.csv'
+    main(model, csv_val, csv_classes)

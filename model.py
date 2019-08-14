@@ -260,20 +260,29 @@ class ResNet(nn.Module):
             transformed_anchors = self.clipBoxes(transformed_anchors, img_batch)
 
             scores = torch.max(classification, dim=2, keepdim=True)[0]
-
+            # print(f"scores: {scores.size()}")
+            # print(f"classification: {classification.size()}")
+            
             scores_over_thresh = (scores>0.05)[0, :, 0]
-
+            
             if scores_over_thresh.sum() == 0:
                 # no boxes to NMS, just return
                 return [torch.zeros(0), torch.zeros(0), torch.zeros(0, 4)]
-
+            
             classification = classification[:, scores_over_thresh, :]
             transformed_anchors = transformed_anchors[:, scores_over_thresh, :]
             scores = scores[:, scores_over_thresh, :]
-
-            anchors_nms_idx = nms.nms(transformed_anchors, scores, overlap=0.5)
-
+            # print(f"scores: {scores.size()}")
+            # print(f"classification: {classification.size()}")
+            
+            anchors_nms_idx = nms.nms(transformed_anchors, scores, overlap=0.3)
+            
+            anchors_nms_idx = anchors_nms_idx[0]
             nms_scores, nms_class = classification[0, anchors_nms_idx, :].max(dim=1)
+            # print(f"nms scores size: {nms_scores.size()}")
+            # print(f"nms scores: {nms_scores}")
+            # print(f"nms_class size: {nms_class.size()}")
+            # print(f"nms class: {nms_class}")
 
             return [nms_scores, nms_class, transformed_anchors[0, anchors_nms_idx, :]]
 
